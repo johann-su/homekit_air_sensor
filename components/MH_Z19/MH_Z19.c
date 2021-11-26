@@ -19,7 +19,7 @@ char checksum(char *packet)
         checksum += packet[i];
     }
     checksum = 0xff - checksum;
-    // checksum += 1;
+    checksum += 1;
     return checksum;
 }
 
@@ -69,12 +69,32 @@ int read_co2()
     {
         ESP_LOGW(LOG, "Command dosn't match: %c", data_read[1]);
     }
-    if (data_read[9] != checksum(data_read))
+    if (data_read[8] != checksum(data_read))
     {
-        ESP_LOGW(LOG, "Checksums don't match");
+        ESP_LOGW(LOG, "Checksums don't match: got 0x%hhX, calculated 0x%hhX", data_read[8], checksum(data_read));
     }
 
     result = data_read[2] * 256 + data_read[3];
 
     return result;
+}
+
+void set_self_calibration(bool self_calibration)
+{
+    //command to get co2 concentration
+    char data_write[9] = {0xff, 0x01, 0x79, 0x00,
+                          0x00, 0x00, 0x00, 0x00, 0x79};
+
+    if (self_calibration) { 
+        data_write[3] = 0xa0; 
+    } else { 
+        data_write[3] = 0x00;
+    };
+
+    uart_flush(UART_NUM_2);
+    int res = uart_write_bytes(UART_NUM_2, data_write, 9);
+    if (res != 9)
+    {
+        ESP_LOGW(LOG, "Not all bytes where send: %i", res);
+    }
 }
