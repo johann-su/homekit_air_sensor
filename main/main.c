@@ -5,6 +5,7 @@
 #include "esp_log.h"
 #include "esp_spi_flash.h"
 #include "esp_timer.h"
+#include <nvs_flash.h>
 
 #include "MH_Z19.h"
 #include "CCS811.h"
@@ -25,6 +26,16 @@ void get_values()
 
 void app_main(void)
 {
+    /* Initialize NVS partition */
+    esp_err_t err_nvs_flash = ESP_ERROR_CHECK_WITHOUT_ABORT(nvs_flash_init());
+    if (err_nvs_flash == ESP_ERR_NVS_NO_FREE_PAGES || err_nvs_flash == ESP_ERR_NVS_NEW_VERSION_FOUND)
+    {
+        /* NVS partition was truncated and needs to be erased */
+        ESP_ERROR_CHECK(nvs_flash_erase());
+        /* Retry nvs_flash_init */
+        ESP_ERROR_CHECK(nvs_flash_init());
+    }
+
     ESP_LOGI(LOG, "Init Uart");
     init_uart();
     ESP_LOGI(LOG, "Init I2C");
