@@ -2,7 +2,7 @@ menu "App Wi-Fi"
 
     choice APP_WIFI_CRED_SOURCE
         bool "Source of Wi-Fi Credentials"
-        default APP_WIFI_USE_PROVISIONING
+        default APP_WIFI_USE_HARDCODED
         help
             Wi-Fi credentials can either be hard-coded or provided using Provisioning.
 
@@ -74,7 +74,7 @@ menu "App Wi-Fi"
         config APP_WIFI_PROV_TRANSPORT_BLE
             bool "BLE"
             select BT_ENABLED
-            depends on IDF_TARGET_ESP32
+            depends on IDF_TARGET_ESP32 || IDF_TARGET_ESP32C3
     endchoice
 
     config APP_WIFI_PROV_TRANSPORT
