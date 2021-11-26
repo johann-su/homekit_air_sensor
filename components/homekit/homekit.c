@@ -1,6 +1,9 @@
+#include <string.h>
 #include <stdio.h>
 #include <esp_log.h>
 #include <esp_wifi.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
 
 #include <hap.h>
 #include <hap_apple_servs.h>
@@ -12,6 +15,8 @@
 #include "CCS811.h"
 
 #include "homekit.h"
+
+#define LOG "HOMEKIT"
 
 static const char *TAG = "HomeKit_Server";
 
@@ -253,7 +258,7 @@ static void homekit_init(void *arg)
     // }
 
     /* Add the optional characteristics to the Carbon Dioxide Sensor Service */
-    ret = hap_serv_add_char(carbon_dioxide_detection_service, hap_char_name_create("My Carbon Dioxide Sensor"));
+    int ret = hap_serv_add_char(carbon_dioxide_detection_service, hap_char_name_create("My Carbon Dioxide Sensor"));
     ret |= hap_serv_add_char(carbon_dioxide_detection_service, hap_char_carbon_dioxide_level_create(0));
     ret |= hap_serv_add_char(carbon_dioxide_detection_service, hap_char_carbon_dioxide_peak_level_create(0));
     if (ret != HAP_SUCCESS)
@@ -306,4 +311,9 @@ static void homekit_init(void *arg)
 err:
     hap_acc_delete(accessory);
     vTaskDelete(NULL);
+}
+
+void homekit_server_start(void)
+{
+    xTaskCreatePinnedToCore(homekit_init, "HomeKit task", configMINIMAL_STACK_SIZE * 8, NULL, 3, NULL, PRO_CPU_NUM);
 }

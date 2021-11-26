@@ -7,6 +7,8 @@
 #include "esp_timer.h"
 #include <nvs_flash.h>
 
+#include "app_wifi.h"
+#include "homekit.h"
 #include "MH_Z19.h"
 #include "CCS811.h"
 
@@ -42,6 +44,17 @@ void app_main(void)
     init_i2c();
     ESP_LOGI(LOG, "Init ccs811");
     init_ccs811();
+
+    /* Initialize Wi-Fi */
+    app_wifi_init();
+
+    ESP_LOGI(TAG, "Wifi initialized");
+
+    /* Start Wi-Fi */
+    app_wifi_start(portMAX_DELAY);
+
+    ESP_LOGI(LOG, "Init Homekit");
+    homekit_server_start();
 
     const esp_timer_create_args_t sensor_timer_args = {
         .callback = &get_values,

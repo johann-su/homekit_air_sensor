@@ -99,11 +99,11 @@ bool init_ccs811()
 
 float read_ccs811(int a)
 {
-    ESP_LOGI(LOG, "Status: 0x%hhX", ccs811_read_byte(CCS811_REG_STATUS) >> 6);
+    // ESP_LOGI(LOG, "Status: 0x%hhX", ccs811_read_byte(CCS811_REG_STATUS) >> 6);
 
     // if (ccs811_read_byte(CCS811_REG_STATUS) == CCS811_STATUS_DATA_RDY)
     // {
-        ESP_LOGI(LOG, "New data ready. Reading now");
+        // ESP_LOGI(LOG, "New data ready. Reading now");
         ccs811_data d = ccs811_sensor_data(CCS811_REG_ALG_RESULT_DATA);
 
         switch (a)

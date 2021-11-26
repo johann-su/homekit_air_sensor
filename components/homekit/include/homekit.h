@@ -1,1 +1,1 @@
-void func(void);
+void homekit_server_start(void);
