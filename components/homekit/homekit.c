@@ -4,6 +4,7 @@
 #include <esp_wifi.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
+#include <math.h>
 
 #include <hap.h>
 #include <hap_apple_servs.h>
@@ -72,54 +73,31 @@ static const char *TAG = "HomeKit_Server";
 //     return HAP_FAIL;
 // }
 
-// static int air_quality_sensor_read(hap_char_t *hc, hap_status_t *status_code, void *serv_priv, void *read_priv)
-// {
-//     if (!strcmp(hap_char_get_type_uuid(hc), HAP_CHAR_UUID_AIR_QUALITY))
-//     {
-//         if (environmental_data->static_iaq.data_available)
-//         {
-//             hap_val_t new_val;
-//             if (*environmental_data->static_iaq.accuracy == 0)
-//             {
-//                 new_val.u = 0;
-//             }
-//             else
-//             {
-//                 new_val.u = round(0.5 + *environmental_data->static_iaq.value / 100.f);
-//             }
-//             hap_char_update_val(hc, &new_val);
-//             *status_code = HAP_STATUS_SUCCESS;
-//             return HAP_SUCCESS;
-//         }
-//         else
-//         {
-//             ESP_LOGW(TAG, "No air quality data available");
-//             *status_code = HAP_STATUS_RES_ABSENT;
-//         }
-//     }
-//     else if (!strcmp(hap_char_get_type_uuid(hc), HAP_CHAR_UUID_VOC_DENSITY))
-//     {
-//         if (environmental_data->breath_voc_equivalent.data_available)
-//         {
-//             hap_val_t new_val;
-//             new_val.f = *environmental_data->breath_voc_equivalent.value;
-//             hap_char_update_val(hc, &new_val);
-//             *status_code = HAP_STATUS_SUCCESS;
-//             return HAP_SUCCESS;
-//         }
-//         else
-//         {
-//             ESP_LOGW(TAG, "No voc data available");
-//             *status_code = HAP_STATUS_RES_ABSENT;
-//         }
-//     }
-//     else
-//     {
-//         ESP_LOGW(TAG, "Not a air quality / voc characteristic");
-//         *status_code = HAP_STATUS_RES_ABSENT;
-//     }
-//     return HAP_FAIL;
-// }
+static int air_quality_sensor_read(hap_char_t *hc, hap_status_t *status_code, void *serv_priv, void *read_priv)
+{
+    if (!strcmp(hap_char_get_type_uuid(hc), HAP_CHAR_UUID_AIR_QUALITY))
+    {
+        hap_val_t new_val;
+        new_val.u = round(0.5 + read_ccs811(1) / 100.f);
+        hap_char_update_val(hc, &new_val);
+        *status_code = HAP_STATUS_SUCCESS;
+        return HAP_SUCCESS;
+    }
+    else if (!strcmp(hap_char_get_type_uuid(hc), HAP_CHAR_UUID_VOC_DENSITY))
+    {
+        hap_val_t new_val;
+        new_val.f = read_ccs811(1);
+        hap_char_update_val(hc, &new_val);
+        *status_code = HAP_STATUS_SUCCESS;
+        return HAP_SUCCESS;
+    }
+    else
+    {
+        ESP_LOGW(TAG, "Not a air quality / voc characteristic");
+        *status_code = HAP_STATUS_RES_ABSENT;
+    }
+    return HAP_FAIL;
+}
 
 static int carbon_dioxide_sensor_read(hap_char_t *hc, hap_status_t *status_code, void *serv_priv, void *read_priv)
 {
@@ -168,7 +146,7 @@ static void homekit_init(void *arg)
     hap_acc_t *accessory;
     // hap_serv_t *temperature_service;
     // hap_serv_t *humidity_service;
-    // hap_serv_t *air_quality_service;
+    hap_serv_t *air_quality_service;
     hap_serv_t *carbon_dioxide_detection_service;
 
     /* Initialize the HAP core */
@@ -217,12 +195,12 @@ static void homekit_init(void *arg)
     // }
 
     /* Create the Air Quality Sensor Service */
-    // air_quality_service = hap_serv_air_quality_sensor_create(0);
-    // if (!air_quality_service)
-    // {
-    //     ESP_LOGE(LOG, "Failed to create air quality sensor service");
-    //     goto err;
-    // }
+    air_quality_service = hap_serv_air_quality_sensor_create(0);
+    if (!air_quality_service)
+    {
+        ESP_LOGE(LOG, "Failed to create air quality sensor service");
+        goto err;
+    }
 
     /* Create the Carbon Dioxide Sensor Service */
     carbon_dioxide_detection_service = hap_serv_carbon_dioxide_sensor_create(0);
@@ -249,16 +227,16 @@ static void homekit_init(void *arg)
     // }
 
     /* Add the optional characteristics to the Air Quality Sensor Service */
-    // ret = hap_serv_add_char(air_quality_service, hap_char_name_create("Air Quality Sensor"));
-    // ret |= hap_serv_add_char(air_quality_service, hap_char_voc_density_create(500));
-    // if (ret != HAP_SUCCESS)
-    // {
-    //     ESP_LOGE(LOG, "Failed to add optional characteristics to air quality sensor service");
-    //     goto err;
-    // }
+    int ret = hap_serv_add_char(air_quality_service, hap_char_name_create("Air Quality Sensor"));
+    ret |= hap_serv_add_char(air_quality_service, hap_char_voc_density_create(500));
+    if (ret != HAP_SUCCESS)
+    {
+        ESP_LOGE(LOG, "Failed to add optional characteristics to air quality sensor service");
+        goto err;
+    }
 
     /* Add the optional characteristics to the Carbon Dioxide Sensor Service */
-    int ret = hap_serv_add_char(carbon_dioxide_detection_service, hap_char_name_create("My Carbon Dioxide Sensor"));
+    ret = hap_serv_add_char(carbon_dioxide_detection_service, hap_char_name_create("My Carbon Dioxide Sensor"));
     ret |= hap_serv_add_char(carbon_dioxide_detection_service, hap_char_carbon_dioxide_level_create(0));
     ret |= hap_serv_add_char(carbon_dioxide_detection_service, hap_char_carbon_dioxide_peak_level_create(0));
     if (ret != HAP_SUCCESS)
@@ -272,7 +250,7 @@ static void homekit_init(void *arg)
     /* Set the read callback for the Humidity Sensor Service */
     // hap_serv_set_read_cb(humidity_service, read_humidity);
     /* Set the read callback for the Air Quality Sensor Service */
-    // hap_serv_set_read_cb(air_quality_service, read_tvoc);
+    hap_serv_set_read_cb(air_quality_service, air_quality_sensor_read);
     /* Set the read callback for the Carbon Dioxide Sensor Service */
     hap_serv_set_read_cb(carbon_dioxide_detection_service, carbon_dioxide_sensor_read);
 
@@ -281,7 +259,7 @@ static void homekit_init(void *arg)
     /* Add the Humidity Sensor Service to the Accessory Object */
     // hap_acc_add_serv(accessory, humidity_service);
     /* Add the Air Quality Sensor Service to the Accessory Object */
-    // hap_acc_add_serv(accessory, air_quality_service);
+    hap_acc_add_serv(accessory, air_quality_service);
     /* Add the Carbon Dioxide Sensor Service to the Accessory Object */
     hap_acc_add_serv(accessory, carbon_dioxide_detection_service);
 
